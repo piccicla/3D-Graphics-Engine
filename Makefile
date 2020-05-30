@@ -1,6 +1,6 @@
 build:
 	gcc -Wall \
-	./src/mesh.c ./src/triangle.c ./src/vector.c ./src/display.c ./src/main.c \
+	./src/*.c \
 	-std=c99 \
 	-I"C:\courses\pikuma3d\3drenderer\libsdl\include" \
 	-L"C:\courses\pikuma3d\3drenderer\libsdl\lib" \
