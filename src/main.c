@@ -10,31 +10,23 @@
 #include "triangle.h"
 
 //####globals######
-
+//global variables for execution status and game loop
+float fov_factor = 1000;  //increase to increase the objects size
+vec3_t camera_position = { .x = 0, .y = 0, .z = -5};
+//vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
+bool is_running;
+int previous_frame_time = 0;
 
 //###################
 //const int N_POINTS = 9*9*9; //not compiling, so we use #define N_POINTS 
-#define N_POINTS (9 * 9 * 9)
-vec3_t cube_points[N_POINTS];
-vec2_t projected_points[N_POINTS];
+//#define N_POINTS (9 * 9 * 9)
+//vec3_t cube_points[N_POINTS];
+//vec2_t projected_points[N_POINTS];
 //###################
 
 //array of tringles that should be rendered frame by frame
 /////triangle_t triangles_to_render[N_MESH_FACES];
 triangle_t* triangles_to_render = NULL;
-
-
-
-//global variables for execution status and game loop
-float fov_factor = 1000;  //increase to increase the objects size
-
-vec3_t camera_position = { .x = 0, .y = 0, .z = -5};
-
-//vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
-
-bool is_running;
-
-int previous_frame_time = 0;
 
 //#################
 
@@ -61,7 +53,9 @@ void setup(void){
 		}
 	}*/
 
-	load_cube_mesh_data();  //setup cube data
+	//load_cube_mesh_data();  //setup cube data
+	
+	load_obj_file_data("./assets/f22.obj");
 
 };
 
@@ -249,11 +243,13 @@ int main( int argc, char* args[] )
 	
 	setup();
 	
+	
 	while(is_running){
 		process_input();
 		update();
 		render();
 	}
+	
 	destroy_window();
 	free_resources();
     return 0;    
