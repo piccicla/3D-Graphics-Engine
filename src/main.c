@@ -12,7 +12,7 @@
 //####globals######
 //global variables for execution status and game loop
 float fov_factor = 1000;  //increase to increase the objects size
-vec3_t camera_position = { .x = 0, .y = 0, .z = -5};
+vec3_t camera_position = { .x = 0, .y = 0, .z = 0};
 //vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 bool is_running;
 int previous_frame_time = 0;
@@ -54,8 +54,8 @@ void setup(void){
 	}*/
 
 	//load_cube_mesh_data();  //setup cube data
-	
-	load_obj_file_data("./assets/f22.obj");
+	//load_obj_file_data("./assets/f22.obj");
+	load_obj_file_data("./assets/cube.obj");
 
 };
 
@@ -153,6 +153,10 @@ void update(void){
 		
 		
 		triangle_t projected_triangle;
+		
+		vec3_t transformed_vertices[3]; // will be used to store the 3 transformed vertices before back culling
+		
+		
 		//loop 3 vertices and applytransformation
 		for (int j=0; j<3; j++){
 			
@@ -162,22 +166,54 @@ void update(void){
 			transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
 			transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
 			
-			//move away points from the camera_position
+			//move away points from the camera_position (which is at 0,0,0)
 			////point.z -= camera_position.z;
-			transformed_vertex.z -= camera_position.z;
-		
-			////vec2_t projected_point = project(point);
-			vec2_t projected_point = project(transformed_vertex);
+			transformed_vertex.z += 5;
 			
-			//scale and translate projected points to the middle of the screen
-			projected_point.x += (window_width/2);
-			projected_point.y += (window_height/2); 
-			
-			projected_triangle.points[j]  = projected_point;
+			// we save the vertex
+			transformed_vertices[j] = transformed_vertex;
 		}
-		// save projected triangle in the array of triangles to render
-		////triangles_to_render[i] = projected_triangle;
-		array_push(triangles_to_render, projected_triangle);
+		
+		//do Backculling
+		vec3_t  vector_a = transformed_vertices[0];	/*	 A  clockwise triangle */
+		vec3_t  vector_b = transformed_vertices[1];	/*  / \	 */
+		vec3_t  vector_c = transformed_vertices[2];	/* C---B */
+		
+		// get subtraction b-a and c-a
+		vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+		vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+		vec3_normalize(&vector_ab);
+		vec3_normalize(&vector_ac);
+		
+		// take the cross product to get the trangle normal, this engine is left-handed
+		vec3_t normal = vec3_cross(vector_ab, vector_ac);
+		vec3_normalize(&normal);
+
+
+		// find ray between point A and camera 
+		vec3_t camera_ray =vec3_sub(camera_position, vector_a);
+		
+		//render the face only if angle between camera-ray and normal is < 90degrees
+		if (vec3_dot(camera_ray, normal)>0){
+		
+			// finally project projection from 3d to 2d screen
+			for (int j=0; j<3; j++){
+			
+				////vec2_t projected_point = project(point);
+				vec2_t projected_point = project(transformed_vertices[j]);
+				
+				//scale and translate projected points to the middle of the screen
+				projected_point.x += (window_width/2);
+				projected_point.y += (window_height/2); 
+				
+				projected_triangle.points[j]  = projected_point;
+			}
+		
+			// save projected triangle in the array of triangles to render
+			////triangles_to_render[i] = projected_triangle;
+			array_push(triangles_to_render, projected_triangle);
+		
+		}
 	}
 	
 	
