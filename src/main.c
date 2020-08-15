@@ -16,6 +16,7 @@ vec3_t camera_position = { .x = 0, .y = 0, .z = 0};
 //vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 bool is_running;
 int previous_frame_time = 0;
+bool animate_grid = false;
 
 //###################
 //const int N_POINTS = 9*9*9; //not compiling, so we use #define N_POINTS 
@@ -31,6 +32,10 @@ triangle_t* triangles_to_render = NULL;
 //#################
 
 void setup(void){
+	
+	// initialize render mode
+	render_method = RENDER_WIRE;
+	cull_method = CULL_BACKFACE;
 	
 	color_buffer =(uint32_t*) malloc(sizeof(uint32_t) * window_width * window_height);
 	color_buffer_texture = SDL_CreateTexture(
@@ -53,9 +58,9 @@ void setup(void){
 		}
 	}*/
 
-	//load_cube_mesh_data();  //setup cube data
+	load_cube_mesh_data();  //setup cube data
 	//load_obj_file_data("./assets/f22.obj");
-	load_obj_file_data("./assets/cube.obj");
+	//load_obj_file_data("./assets/cube.obj");
 
 };
 
@@ -79,8 +84,20 @@ void process_input(void){
 		case SDL_KEYDOWN:
 			if (event.key.keysym.sym == SDLK_ESCAPE)
 				is_running = false;
+			if (event.key.keysym.sym == SDLK_1)
+				render_method = RENDER_WIRE_VERTEX;
+			if (event.key.keysym.sym == SDLK_2)
+				render_method = RENDER_WIRE;
+			if (event.key.keysym.sym == SDLK_3)
+				render_method = RENDER_FILL_TRIANGLE;
+			if (event.key.keysym.sym == SDLK_4)
+				render_method = RENDER_FILL_TRIANGLE_WIRE;
+			if (event.key.keysym.sym == SDLK_c)
+				cull_method = CULL_BACKFACE;			
+			if (event.key.keysym.sym == SDLK_d)
+				cull_method = CULL_NONE;				
 			break;
-			
+		
 	}
 };
 
@@ -106,14 +123,15 @@ void update(void){
 	
 
 	// pulsating grid
-	if (grid_growth==0){
-		grid_space++;
-		if (grid_space==max_grid) {grid_growth=1;}
-	}
-	else{
-		grid_space--;
-		if (grid_space==min_grid) {grid_growth=0;}		
-		
+	if(animate_grid){ 
+		if (grid_growth==0){
+			grid_space++;
+			if (grid_space==max_grid) {grid_growth=1;}
+		}
+		else{
+			grid_space--;
+			if (grid_space==min_grid) {grid_growth=0;}			
+		}
 	}
 	
 	mesh.rotation.x += 0.01;
@@ -151,9 +169,6 @@ void update(void){
 		face_vertices[1] = mesh.vertices[mesh_face.b - 1];
 		face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 		
-		
-		triangle_t projected_triangle;
-		
 		vec3_t transformed_vertices[3]; // will be used to store the 3 transformed vertices before back culling
 		
 		
@@ -175,46 +190,87 @@ void update(void){
 		}
 		
 		//do Backculling
-		vec3_t  vector_a = transformed_vertices[0];	/*	 A  clockwise triangle */
-		vec3_t  vector_b = transformed_vertices[1];	/*  / \	 */
-		vec3_t  vector_c = transformed_vertices[2];	/* C---B */
-		
-		// get subtraction b-a and c-a
-		vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-		vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-		vec3_normalize(&vector_ab);
-		vec3_normalize(&vector_ac);
-		
-		// take the cross product to get the trangle normal, this engine is left-handed
-		vec3_t normal = vec3_cross(vector_ab, vector_ac);
-		vec3_normalize(&normal);
-
-
-		// find ray between point A and camera 
-		vec3_t camera_ray =vec3_sub(camera_position, vector_a);
-		
-		//render the face only if angle between camera-ray and normal is < 90degrees
-		if (vec3_dot(camera_ray, normal)>0){
-		
-			// finally project projection from 3d to 2d screen
-			for (int j=0; j<3; j++){
+		if (cull_method == CULL_BACKFACE){
+			vec3_t  vector_a = transformed_vertices[0];	/*	 A  clockwise triangle */
+			vec3_t  vector_b = transformed_vertices[1];	/*  / \	 */
+			vec3_t  vector_c = transformed_vertices[2];	/* C---B */
 			
-				////vec2_t projected_point = project(point);
-				vec2_t projected_point = project(transformed_vertices[j]);
-				
-				//scale and translate projected points to the middle of the screen
-				projected_point.x += (window_width/2);
-				projected_point.y += (window_height/2); 
-				
-				projected_triangle.points[j]  = projected_point;
+			// get subtraction b-a and c-a
+			vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+			vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+			vec3_normalize(&vector_ab);
+			vec3_normalize(&vector_ac);
+			
+			// take the cross product to get the trangle normal, this engine is left-handed
+			vec3_t normal = vec3_cross(vector_ab, vector_ac);
+			vec3_normalize(&normal);
+
+
+			// find ray between point A and camera 
+			vec3_t camera_ray =vec3_sub(camera_position, vector_a);
+			
+			//render the face only if angle between camera-ray and normal is < 90degrees
+			if (vec3_dot(normal,camera_ray)<0){
+				continue;  // go back to for(int i=0; i<num_faces; i++)
 			}
-		
-			// save projected triangle in the array of triangles to render
-			////triangles_to_render[i] = projected_triangle;
-			array_push(triangles_to_render, projected_triangle);
-		
 		}
+		
+		///triangle_t projected_triangle;
+		vec2_t projected_points[3];
+		
+		// finally project projection from 3d to 2d screen
+		for (int j=0; j<3; j++){
+		
+			////vec2_t projected_point = project(point);
+			///vec2_t projected_point = project(transformed_vertices[j]);
+			projected_points[j] = project(transformed_vertices[j]); 
+			
+			//scale and translate projected points to the middle of the screen
+			//projected_point.x += (window_width/2);
+			//projected_point.y += (window_height/2);
+			projected_points[j].x += (window_width/2);
+			projected_points[j].y += (window_height/2);
+			
+			}
+			
+			// calculate average depth on each face based on vertices after transformation
+			float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z)/3.0;
+			
+			
+			////projected_triangle.points[j]  = projected_point;
+			triangle_t projected_triangle = {
+				.points = {
+					{projected_points[0].x, projected_points[0].y},
+					{projected_points[1].x, projected_points[1].y},
+					{projected_points[2].x, projected_points[2].y}
+				},
+				.color = mesh_face.color,
+				.avg_depth= avg_depth
+			};
+			
+		///}
+	
+		// save projected triangle in the array of triangles to render
+		////triangles_to_render[i] = projected_triangle;
+		array_push(triangles_to_render, projected_triangle);
+			
 	}
+	
+	//todo sort triangles to render by their avg_depth()
+	// using simple bubble sort
+	
+	int num_triangles = array_length(triangles_to_render);
+	for(int i=0; i<num_triangles; i++){
+		for(int j=i; j<num_triangles; j++){
+			if(triangles_to_render[i].avg_depth < triangles_to_render[j].avg_depth){
+				triangle_t temp = triangles_to_render[i];
+				triangles_to_render[i] = triangles_to_render[j];
+				triangles_to_render[j] = temp;
+				
+			}
+		}	
+	}
+	
 	
 	
 };
@@ -225,7 +281,7 @@ void render(void){
 	
 	clear_color_buffer(0xFF000000);
 	
-	//draw_grid(grid_space,0xFFFFFFFF);	
+	draw_grid(grid_space,0xFF909090);	
 	//draw_rectangle(100,100,200,200, 0xFFFF0000);	
 	//draw_pixel(5500,5500,0xFFFF0000);
 	
@@ -242,25 +298,40 @@ void render(void){
 	}*/ 
 	
 	
+	// draw  triangles
 	int num_triangles = array_length(triangles_to_render);
 	//for (int i=0; i<N_MESH_FACES; i++){
 	for (int i=0; i<num_triangles; i++){	
 		triangle_t triangle = triangles_to_render[i];
-		draw_rectangle(triangle.points[0].x,triangle.points[0].y, 8, 8, 0xFFFF0000);
-		draw_rectangle(triangle.points[1].x,triangle.points[1].y, 8, 8, 0xFFFF0000);
-		draw_rectangle(triangle.points[2].x,triangle.points[2].y, 8, 8, 0xFFFF0000);
 		
-		draw_triangle(	triangle.points[0].x,triangle.points[0].y,
-						triangle.points[1].x,triangle.points[1].y,
-						triangle.points[2].x,triangle.points[2].y, 
-						0xFFFF0000);
-
+		if (render_method==RENDER_WIRE_VERTEX){
+			draw_rectangle(triangle.points[0].x-4,triangle.points[0].y-4, 8, 8, 0xFFFF0000);
+			draw_rectangle(triangle.points[1].x-4,triangle.points[1].y-4, 8, 8, 0xFFFF0000);
+			draw_rectangle(triangle.points[2].x-4,triangle.points[2].y-4, 8, 8, 0xFFFF0000);
+		}
+		if (render_method==RENDER_FILL_TRIANGLE || render_method==RENDER_FILL_TRIANGLE_WIRE){
+			draw_filled_triangle(	triangle.points[0].x,triangle.points[0].y,
+							triangle.points[1].x,triangle.points[1].y,
+							triangle.points[2].x,triangle.points[2].y, 
+							///0xFFFFFF00
+							triangle.color
+							);
+		}
+		
+		if (render_method==RENDER_WIRE || render_method==RENDER_WIRE_VERTEX || render_method==RENDER_FILL_TRIANGLE_WIRE){
+			draw_triangle(	triangle.points[0].x,triangle.points[0].y,
+							triangle.points[1].x,triangle.points[1].y,
+							triangle.points[2].x,triangle.points[2].y, 
+							0xFFFF0000);
+		}
 	}
+	
+	//draw_filled_triangle(	300,100,50,400,500,700, 0xFFFF0000);
+	
 
 	//clear array of triangles to render after every frame loop
 	array_free(triangles_to_render);
-	
-		
+			
 	render_color_buffer();
 
 	SDL_RenderPresent(renderer);
