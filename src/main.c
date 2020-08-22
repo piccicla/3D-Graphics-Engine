@@ -8,6 +8,7 @@
 #include "vector.h"
 #include "mesh.h"
 #include "triangle.h"
+#include "matrix.h"
 
 //####globals######
 //global variables for execution status and game loop
@@ -177,9 +178,10 @@ void update(void){
 			
 			vec3_t transformed_vertex = face_vertices[j];
 		
-			transformed_vertex = vec3_rotate_x(transformed_vertex, mesh.rotation.x);
-			transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
-			transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
+			//TODO: use a matrix
+			///transformed_vertex = vec3_rotate_x(transformed_vertex, mesh.rotation.x);
+			////transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
+			///transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
 			
 			//move away points from the camera_position (which is at 0,0,0)
 			////point.z -= camera_position.z;
