@@ -139,13 +139,13 @@ void update(void){
 	mesh.rotation.y += 0.01;
 	mesh.rotation.z += 0.01;
 	
-	//mesh.scale.x += 0.001;
-	//mesh.scale.y += 0.001;
+	mesh.scale.x += 0.001;
+	mesh.scale.y += 0.001;
 	
-	//mesh.translation.x += 0.005;
+	mesh.translation.x += 0.005;
 	mesh.translation.z = 5;
 	
-	// use matrixes to scale. translate, and rotate a mesh
+	// use matrixes to scale, translate, and rotate a mesh
 	mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
 	mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z); 
 	mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x); 
@@ -192,14 +192,24 @@ void update(void){
 			vec4_t transformed_vertex =  vec4_from_vec3(face_vertices[j]);
 		
 			//use a matrix to scale,rotate, and translate (order is important!)
-			transformed_vertex = mat4_mul_vec(scale_matrix, transformed_vertex);
-			transformed_vertex = mat4_mul_vec(rotation_matrix_x, transformed_vertex);
-			transformed_vertex = mat4_mul_vec(rotation_matrix_y, transformed_vertex);
-			transformed_vertex = mat4_mul_vec(rotation_matrix_z, transformed_vertex);
-			transformed_vertex = mat4_mul_vec(translation_matrix, transformed_vertex);
+			///transformed_vertex = mat4_mul_vec(scale_matrix, transformed_vertex);
+			///transformed_vertex = mat4_mul_vec(rotation_matrix_x, transformed_vertex);
+			///transformed_vertex = mat4_mul_vec(rotation_matrix_y, transformed_vertex);
+			///transformed_vertex = mat4_mul_vec(rotation_matrix_z, transformed_vertex);
+			///transformed_vertex = mat4_mul_vec(translation_matrix, transformed_vertex);
 			///transformed_vertex = vec3_rotate_x(transformed_vertex, mesh.rotation.x);
 			////transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
 			///transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
+			
+			
+			//create a world matrix to scale,rotate, and translate vertex (order matters)
+			mat4_t world_matrix = mat4_identity();
+			world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
+			world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
+			world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
+			world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
+			world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
+			transformed_vertex = mat4_mul_vec(world_matrix, transformed_vertex);
 			
 			//move away points from the camera_position (which is at 0,0,0)
 			////point.z -= camera_position.z;
