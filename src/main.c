@@ -9,15 +9,17 @@
 #include "mesh.h"
 #include "triangle.h"
 #include "matrix.h"
+#include "light.h"
 
 //####globals######
 //global variables for execution status and game loop
-float fov_factor = 1000;  //increase to increase the objects size
 vec3_t camera_position = { .x = 0, .y = 0, .z = 0};
 //vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 bool is_running;
 int previous_frame_time = 0;
 bool animate_grid = false;
+//float fov_factor = 1000;  //increase to increase the objects size
+mat4_t proj_matrix;
 
 //###################
 //const int N_POINTS = 9*9*9; //not compiling, so we use #define N_POINTS 
@@ -48,6 +50,14 @@ void setup(void){
 	);
 	
 	
+	//initiakize perspective projection matrix
+	float fov = M_PI/3.0;  //60 degrees in radians
+	float aspect = (float)window_height/(float)window_width;
+	float znear = 0.1;
+	float zfar = 100.0;
+	proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
+	
+	
 	/////
 	/*int point_count=0;
 	for (float x=-1; x<=1; x+=0.25){
@@ -59,21 +69,21 @@ void setup(void){
 		}
 	}*/
 
-	load_cube_mesh_data();  //setup cube data
-	//load_obj_file_data("./assets/f22.obj");
+	//load_cube_mesh_data();  //setup cube data
+	load_obj_file_data("./assets/f22.obj");
 	//load_obj_file_data("./assets/cube.obj");
 
 };
 
 /*perspective projection*/
-vec2_t project(vec3_t point){
+/*vec2_t project(vec3_t point){
 	
 	vec2_t projected_point = {
 		.x = (fov_factor * point.x)/point.z,
 		.y = (fov_factor * point.y)/point.z
 	};
 	return projected_point;
-}
+}*/
 
 void process_input(void){
 	SDL_Event event;
@@ -93,12 +103,15 @@ void process_input(void){
 				render_method = RENDER_FILL_TRIANGLE;
 			if (event.key.keysym.sym == SDLK_4)
 				render_method = RENDER_FILL_TRIANGLE_WIRE;
+			if (event.key.keysym.sym == SDLK_5)
+				render_method = RENDER_TEXTURED_WIRE;
+			if (event.key.keysym.sym == SDLK_6)
+				render_method = RENDER_TEXTURED_WIRE;			
 			if (event.key.keysym.sym == SDLK_c)
 				cull_method = CULL_BACKFACE;			
 			if (event.key.keysym.sym == SDLK_d)
 				cull_method = CULL_NONE;				
-			break;
-		
+			break;		
 	}
 };
 
@@ -139,10 +152,10 @@ void update(void){
 	mesh.rotation.y += 0.01;
 	mesh.rotation.z += 0.01;
 	
-	mesh.scale.x += 0.001;
-	mesh.scale.y += 0.001;
+	//mesh.scale.x += 0.001;
+	//mesh.scale.y += 0.001;
 	
-	mesh.translation.x += 0.005;
+	//mesh.translation.x += 0.005;
 	mesh.translation.z = 5;
 	
 	// use matrixes to scale, translate, and rotate a mesh
@@ -219,26 +232,27 @@ void update(void){
 			transformed_vertices[j] = transformed_vertex;
 		}
 		
+		
+		vec3_t  vector_a = vec3_from_vec4(transformed_vertices[0]);	/*	 A  clockwise triangle */
+		vec3_t  vector_b = vec3_from_vec4(transformed_vertices[1]);	/*  / \	 */
+		vec3_t  vector_c = vec3_from_vec4(transformed_vertices[2]);	/* C---B */
+		
+		// get subtraction b-a and c-a
+		vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+		vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+		vec3_normalize(&vector_ab);
+		vec3_normalize(&vector_ac);
+		
+		// take the cross product to get the trangle normal, this engine is left-handed
+		vec3_t normal = vec3_cross(vector_ab, vector_ac);
+		vec3_normalize(&normal);
+
+
+		// find ray between point A and camera 
+		vec3_t camera_ray =vec3_sub(camera_position, vector_a);
+			
 		//do Backculling
-		if (cull_method == CULL_BACKFACE){
-			vec3_t  vector_a = vec3_from_vec4(transformed_vertices[0]);	/*	 A  clockwise triangle */
-			vec3_t  vector_b = vec3_from_vec4(transformed_vertices[1]);	/*  / \	 */
-			vec3_t  vector_c = vec3_from_vec4(transformed_vertices[2]);	/* C---B */
-			
-			// get subtraction b-a and c-a
-			vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-			vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-			vec3_normalize(&vector_ab);
-			vec3_normalize(&vector_ac);
-			
-			// take the cross product to get the trangle normal, this engine is left-handed
-			vec3_t normal = vec3_cross(vector_ab, vector_ac);
-			vec3_normalize(&normal);
-
-
-			// find ray between point A and camera 
-			vec3_t camera_ray =vec3_sub(camera_position, vector_a);
-			
+		if (cull_method == CULL_BACKFACE){	
 			//render the face only if angle between camera-ray and normal is < 90degrees
 			if (vec3_dot(normal,camera_ray)<0){
 				continue;  // go back to for(int i=0; i<num_faces; i++)
@@ -246,26 +260,37 @@ void update(void){
 		}
 		
 		///triangle_t projected_triangle;
-		vec2_t projected_points[3];
+		vec4_t projected_points[3];
 		
 		// finally project projection from 3d to 2d screen
 		for (int j=0; j<3; j++){
 		
 			////vec2_t projected_point = project(point);
 			///vec2_t projected_point = project(transformed_vertices[j]);
-			projected_points[j] = project(vec3_from_vec4(transformed_vertices[j])); 
+			///projected_points[j] = project(vec3_from_vec4(transformed_vertices[j])); 
+			projected_points[j] = mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
 			
-			//scale and translate projected points to the middle of the screen
+			
+			// scale into the view
+			projected_points[j].x *= (window_width/2.0);
+			projected_points[j].y *= (window_height/2.0);
+			
+			// translate projected points to the middle of the screen
 			//projected_point.x += (window_width/2);
 			//projected_point.y += (window_height/2);
-			projected_points[j].x += (window_width/2);
-			projected_points[j].y += (window_height/2);
+			projected_points[j].x += (window_width/2.0);
+			projected_points[j].y += (window_height/2.0);
 			
 			}
 			
 			// calculate average depth on each face based on vertices after transformation
 			float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z)/3.0;
 			
+			//calculate shade intensity based on angle between face normal and light direction
+			float light_intensity_factor = -vec3_dot(normal, light.direction); //negative to inverse the light direction
+			
+			//calculate the triangle color based on the light angle
+			uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
 			
 			////projected_triangle.points[j]  = projected_point;
 			triangle_t projected_triangle = {
@@ -274,7 +299,7 @@ void update(void){
 					{projected_points[1].x, projected_points[1].y},
 					{projected_points[2].x, projected_points[2].y}
 				},
-				.color = mesh_face.color,
+				.color = triangle_color,
 				.avg_depth= avg_depth
 			};
 			
@@ -334,6 +359,11 @@ void render(void){
 	for (int i=0; i<num_triangles; i++){	
 		triangle_t triangle = triangles_to_render[i];
 		
+		//draw texture triangle
+		if (render_method==RENDER_TEXTURED || render_method==RENDER_TEXTURED_WIRE){
+			//TODO: draw_textured_triangle{}	
+		}
+			
 		if (render_method==RENDER_WIRE_VERTEX){
 			draw_rectangle(triangle.points[0].x-4,triangle.points[0].y-4, 8, 8, 0xFFFF0000);
 			draw_rectangle(triangle.points[1].x-4,triangle.points[1].y-4, 8, 8, 0xFFFF0000);
@@ -348,7 +378,7 @@ void render(void){
 							);
 		}
 		
-		if (render_method==RENDER_WIRE || render_method==RENDER_WIRE_VERTEX || render_method==RENDER_FILL_TRIANGLE_WIRE){
+		if (render_method==RENDER_WIRE || render_method==RENDER_WIRE_VERTEX || render_method==RENDER_FILL_TRIANGLE_WIRE || render_method==RENDER_TEXTURED_WIRE){
 			draw_triangle(	triangle.points[0].x,triangle.points[0].y,
 							triangle.points[1].x,triangle.points[1].y,
 							triangle.points[2].x,triangle.points[2].y, 
