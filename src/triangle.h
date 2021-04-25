@@ -23,14 +23,15 @@ typedef struct {
 	float avg_depth;
 } triangle_t;
 
+void int_swap(int* a, int* b);
 
 void draw_filled_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
-
-//TODO: void draw_textured_triangle(....);
-
-
-void int_swap(int* a, int* b);
 void fill_flat_bottom_triangle(int x0, int y0,int  x1, int y1, int x2, int y2, uint32_t color);
 void fill_flat_top_triangle(int x0, int y0,int  x1, int y1, int x2, int y2, uint32_t color);
+
+void draw_textured_triangle(int x0, int y0, float u0, float v0,
+							int  x1, int y1, float u1, float v1,
+							int x2, int y2, float u2, float v3,
+							uint32_t* texture);
 
 #endif
