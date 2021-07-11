@@ -112,7 +112,7 @@ void process_input(void){
 			if (event.key.keysym.sym == SDLK_4)
 				render_method = RENDER_FILL_TRIANGLE_WIRE;
 			if (event.key.keysym.sym == SDLK_5)
-				render_method = RENDER_TEXTURED_WIRE;
+				render_method = RENDER_TEXTURED;
 			if (event.key.keysym.sym == SDLK_6)
 				render_method = RENDER_TEXTURED_WIRE;			
 			if (event.key.keysym.sym == SDLK_c)
