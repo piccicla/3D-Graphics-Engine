@@ -162,6 +162,7 @@ void update(void){
 	
 	//mesh.scale.x += 0.001;
 	//mesh.scale.y += 0.001;
+	//mesh.scale.z += 0.001;
 	
 	//mesh.translation.x += 0.005;
 	mesh.translation.z = 5;
